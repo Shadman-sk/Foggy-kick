@@ -6,8 +6,8 @@
 <title>Slap Foggy</title>
 <style>
   :root {
-    --bg-top: #2b4a3a;
-    --bg-bottom: #10201a;
+    --bg-top: #3a414d;
+    --bg-bottom: #0c0e13;
     --ink: #fff6e0;
     --accent: #ffcc33;
     --hit: #ff3b3b;
@@ -15,7 +15,7 @@
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
-    background: radial-gradient(ellipse at 50% 30%, var(--bg-top), var(--bg-bottom) 75%);
+    background: radial-gradient(ellipse at 50% 35%, var(--bg-top), var(--bg-bottom) 75%);
     color: var(--ink);
     font-family: "Trebuchet MS", system-ui, sans-serif;
     overflow: hidden;
@@ -31,7 +31,7 @@
   }
   h1 { margin: 0; font-size: clamp(20px, 4vw, 34px); letter-spacing: 1px; text-shadow: 3px 3px 0 #000; }
   h1 span { color: var(--accent); }
-  .stats { display: flex; gap: 10px; align-items: center; }
+  .stats { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .pill {
     background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.15);
     border-radius: 999px; padding: 6px 14px; font-weight: bold; font-size: 15px;
@@ -50,29 +50,13 @@
   #meter .bar { height: 12px; border-radius: 6px; background: rgba(0,0,0,.5); overflow: hidden; margin-top: 4px; }
   #meter .fill { height: 100%; width: 0; background: linear-gradient(90deg, #ffd23f, #ff7a1a, #ff2d2d); transition: width .15s; }
 
-  #stage {
-    position: fixed; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    cursor: none;
+  #stage { position: fixed; inset: 0; cursor: none; }
+  #scene { width: 100%; height: 100%; display: block; }
+  #loading {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: bold; pointer-events: none; z-index: 5; transition: opacity .4s;
   }
-  #shaker { position: relative; width: min(94vw, calc((100vh - 150px) * 1.4)); margin-top: 30px; }
-  #elf {
-    position: relative; width: 100%;
-    transform-origin: 62% 92%;
-    will-change: transform;
-  }
-  #elf img { width: 100%; display: block; pointer-events: none; -webkit-user-drag: none; }
-  #blush {
-    position: absolute; pointer-events: none; border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,40,40,.75), rgba(255,40,40,0) 70%);
-    mix-blend-mode: multiply; opacity: 0; transition: opacity .4s;
-  }
-  #marks { position: absolute; inset: 0; pointer-events: none; }
-  .print {
-    position: absolute; width: 11%; aspect-ratio: 1; margin: -5.5% 0 0 -5.5%;
-    mix-blend-mode: multiply; animation: fadePrint 7s ease-in forwards;
-  }
-  @keyframes fadePrint { 0% { opacity: .85; } 60% { opacity: .55; } 100% { opacity: 0; } }
+  #loading.done { opacity: 0; }
 
   #hand {
     position: fixed; z-index: 30; pointer-events: none; font-size: 84px; line-height: 1;
@@ -113,7 +97,7 @@
     100% { opacity: 0; transform: translate(-50%, -120%); }
   }
   #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 24; }
-  #dizzy { position: absolute; pointer-events: none; font-size: clamp(18px, 3vw, 32px); }
+  #dizzy { position: fixed; pointer-events: none; font-size: clamp(18px, 3vw, 32px); z-index: 22; }
   #dizzy span { position: absolute; left: 0; top: 0; }
   #banner {
     position: fixed; top: 22%; left: 50%; transform: translateX(-50%); z-index: 26; pointer-events: none;
@@ -122,21 +106,15 @@
     opacity: 0; transition: opacity .3s; text-align: center; white-space: nowrap;
   }
   #banner.show { opacity: 1; }
-
-  /* Overlay drawn in image coordinates: tears, crying mouth, guarding hand */
-  #overlay { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-  .c1, .c2, .c2only, .c3 { opacity: 0; transition: opacity .6s; }
-  #elf[data-cry="1"] .c1,
-  #elf[data-cry="2"] :is(.c1, .c2, .c2only),
-  #elf[data-cry="3"] :is(.c1, .c2, .c3) { opacity: 1; }
-  .c2only path { animation: tremble .18s steps(2) infinite; }
-  @keyframes tremble { 50% { transform: translateY(1.5px); } }
-  .c3 .wail { animation: wail .5s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
-  @keyframes wail { to { transform: scaleY(1.25); } }
-  #puddle { transition: rx .6s, ry .6s; }
-  #guard { transform: translateY(300px); opacity: 0; transition: transform .1s ease-out, opacity .1s; }
-  #guard.up { transform: none; opacity: 1; }
 </style>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+</script>
 </head>
 <body>
   <header>
@@ -151,503 +129,1135 @@
     </div>
   </header>
 
-  <div id="stage">
-    <div id="shaker">
-      <div id="elf">
-        <img src="foggy.png" alt="Foggy the elf" draggable="false">
-        <div id="blush"></div>
-        <div id="marks"></div>
-        <div id="dizzy"></div>
-        <svg id="overlay" viewBox="0 0 984 703" aria-hidden="true">
-          <defs>
-            <radialGradient id="skin" cx="50%" cy="40%" r="65%">
-              <stop offset="0" stop-color="#f3b98c"/><stop offset="1" stop-color="#e09c74"/>
-            </radialGradient>
-            <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#d4f0ff" stop-opacity=".95"/><stop offset="1" stop-color="#4fa8ff" stop-opacity=".9"/>
-            </linearGradient>
-            <filter id="soft"><feGaussianBlur stdDeviation="1.6"/></filter>
-          </defs>
-
-          <ellipse id="puddle" cx="660" cy="690" rx="0" ry="0" fill="#5fb0ff" fill-opacity=".5" stroke="#bfe4ff" stroke-opacity=".7" stroke-width="3"/>
-
-          <!-- sad eyebrows replace the angry ones -->
-          <g class="c2 c3brows">
-            <ellipse cx="562" cy="233" rx="36" ry="9" fill="url(#skin)" filter="url(#soft)"/>
-            <ellipse cx="655" cy="233" rx="36" ry="9" fill="url(#skin)" filter="url(#soft)"/>
-            <ellipse cx="594" cy="244" rx="11" ry="7" fill="url(#skin)" filter="url(#soft)"/>
-            <ellipse cx="624" cy="244" rx="11" ry="7" fill="url(#skin)" filter="url(#soft)"/>
-            <path d="M534 238 Q556 224 588 222 M630 222 Q660 224 682 238" fill="none" stroke="#5b3417" stroke-width="9" stroke-linecap="round"/>
-          </g>
-
-          <!-- teary eyes -->
-          <g class="c1" fill="url(#water)" stroke="#2b6ea8" stroke-width="1.5">
-            <path d="M545 262 Q565 276 586 262 Q566 284 545 262Z"/>
-            <path d="M626 262 Q647 276 670 262 Q648 284 626 262Z"/>
-            <circle cx="556" cy="266" r="2" fill="#fff" stroke="none"/>
-            <circle cx="638" cy="266" r="2" fill="#fff" stroke="none"/>
-          </g>
-
-          <!-- tear streaks -->
-          <g class="c2" fill="none" stroke="#8fcfff" stroke-opacity=".65" stroke-width="7" stroke-linecap="round">
-            <path d="M556 272 Q550 300 558 338"/>
-            <path d="M660 272 Q668 300 660 338"/>
-          </g>
-
-          <!-- trembling frown -->
-          <g class="c2only">
-            <ellipse cx="609" cy="316" rx="36" ry="11" fill="url(#skin)" filter="url(#soft)"/>
-            <path d="M580 320 q7 -9 14 0 t14 0 t14 0 t14 0" fill="none" stroke="#3a1f14" stroke-width="4" stroke-linecap="round"/>
-          </g>
-
-          <!-- wailing open mouth -->
-          <g class="c3">
-            <ellipse cx="609" cy="317" rx="40" ry="16" fill="url(#skin)" filter="url(#soft)"/>
-            <g class="wail">
-              <path d="M585 310 Q609 298 633 310 Q636 334 609 336 Q582 334 585 310Z" fill="#5a1414" stroke="#2a120c" stroke-width="4"/>
-              <path d="M590 309 Q609 302 628 309 L626 313 Q609 308 592 313Z" fill="#fff"/>
-              <ellipse cx="609" cy="328" rx="13" ry="5" fill="#e0606a"/>
-            </g>
-          </g>
-
-          <g id="tears"></g>
-
-          <!-- guarding hand -->
-          <g id="guard" stroke="#22180f" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
-            <path d="M596 352 L664 358 L756 432 Q744 474 700 470Z" fill="#6f8a3c"/>
-            <path d="M640 400 Q680 420 720 450" fill="none" stroke-width="2.5" stroke-opacity=".5"/>
-            <path d="M592 356 Q630 342 666 360 L662 382 Q630 368 588 378Z" fill="#5c7330"/>
-            <path d="M604 360 L606 318 L652 318 L654 360Z" fill="url(#skin)"/>
-            <rect x="580" y="264" width="18" height="50" rx="9" fill="url(#skin)" transform="rotate(-28 598 312)"/>
-            <path d="M590 256 Q586 334 628 336 Q670 334 666 256Z" fill="url(#skin)"/>
-            <rect x="591" y="206" width="18" height="62" rx="9" fill="url(#skin)"/>
-            <rect x="609" y="192" width="18" height="76" rx="9" fill="url(#skin)"/>
-            <rect x="627" y="196" width="18" height="72" rx="9" fill="url(#skin)"/>
-            <rect x="645" y="212" width="17" height="56" rx="8.5" fill="url(#skin)"/>
-            <rect x="594" y="252" width="66" height="18" fill="url(#skin)" stroke="none"/>
-            <path d="M604 296 Q626 306 648 292 M610 316 Q628 322 644 312" fill="none" stroke-width="2.5" stroke-opacity=".5"/>
-          </g>
-        </svg>
-      </div>
-    </div>
-  </div>
+  <div id="stage"><canvas id="scene"></canvas></div>
+  <div id="loading">Loading Foggy…</div>
+  <div id="dizzy"></div>
 
   <div id="meter">Swipe faster for a harder slap!<div class="bar"><div class="fill" id="power"></div></div></div>
   <div id="hand" class="hidden">🖐️</div>
   <div id="flash"></div>
   <div id="banner"></div>
 
-<script>
-(() => {
-  // Regions in source-image pixels (foggy.png is 984 x 703).
-  const IMG_W = 984, IMG_H = 703;
-  const FACE = { x: 610, y: 272, rx: 90, ry: 74 };
-  const EYES = [{ x: 563, y: 270, side: -1 }, { x: 650, y: 270, side: 1 }];
-  const BODY = { x: 620, y: 420, rx: 210, ry: 290 };
-  const SQUIRREL = { x: 170, y: 320, rx: 80, ry: 80 };
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
-  const $ = id => document.getElementById(id);
-  const stage = $('stage'), shaker = $('shaker'), elf = $('elf'), marks = $('marks');
-  const hand = $('hand'), flash = $('flash'), blush = $('blush'), dizzy = $('dizzy'), banner = $('banner');
+// Scanned head by Lee Perry-Smith (infinite-realities.net), CC BY 3.0, via the three.js examples.
+// Browsers block WebGL textures from file://, so fall back to the CDN copy when opened directly.
+const ASSETS = location.protocol === 'file:'
+  ? 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/LeePerrySmith/'
+  : 'models/';
 
-  let count = 0, combo = 0, lastHit = 0, heat = 0, muted = false;
-  let best = 0;
-  try { best = +localStorage.getItem('foggy-best') || 0; } catch {}
-  $('best').textContent = best;
+const $ = id => document.getElementById(id);
+const stage = $('stage'), canvas = $('scene');
+const hand = $('hand'), flash = $('flash'), dizzy = $('dizzy'), banner = $('banner');
 
-  // --- Elf wobble physics (damped spring) ---
-  let angle = 0, angVel = 0, offset = 0, offVel = 0, squash = 0, sqVel = 0;
-  let shake = 0;
-  function tick() {
-    angVel += -0.09 * angle - 0.12 * angVel; angle += angVel;
-    offVel += -0.08 * offset - 0.14 * offVel; offset += offVel;
-    sqVel += -0.2 * squash - 0.18 * sqVel; squash += sqVel;
-    elf.style.transform =
-      `translateX(${offset}px) rotate(${angle}deg) scale(${1 + squash}, ${1 - squash})`;
+let count = 0, combo = 0, lastHit = 0, heat = 0, muted = false;
+let best = 0;
+try { best = +localStorage.getItem('foggy-best') || 0; } catch {}
+$('best').textContent = best;
 
-    shake *= 0.86;
-    shaker.style.transform = shake > 0.3
-      ? `translate(${(Math.random() - .5) * shake}px, ${(Math.random() - .5) * shake}px)` : '';
+// Slap counts for the story beats.
+const GLASSES_CRACK_AT = 30, GLASSES_FALL_AT = 40, TEETH_BREAK_AT = 50;
 
-    heat = Math.max(0, heat - 0.0025);
-    blush.style.opacity = Math.min(heat, 0.9);
+// --- 3D scene ---
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
+const LOOK = new THREE.Vector3(0, 0.6, 0);
+let camDist = 23;
 
-    if (combo && performance.now() - lastHit > 1200) { combo = 0; $('combo').textContent = 'x0'; }
-    requestAnimationFrame(tick);
+scene.add(new THREE.HemisphereLight(0xfff4e8, 0x2a2e36, 1.3));
+const key = new THREE.DirectionalLight(0xffe6d0, 3.2); key.position.set(6, 7, 10); scene.add(key);
+const rim = new THREE.DirectionalLight(0x9cc4ff, 3); rim.position.set(-8, 5, -7); scene.add(rim);
+const fill = new THREE.DirectionalLight(0xffcfb8, 0.9); fill.position.set(-7, -2, 8); scene.add(fill);
+
+// The bust sways from below the shoulders; the head itself turns on the neck (see uHead).
+const NECK_Y = -3.6;
+const pivot = new THREE.Group();
+pivot.position.y = NECK_Y;
+scene.add(pivot);
+let head = null;
+// Everything attached to the head (eyes, hair, glasses, teeth) lives in this group, which follows the neck turn.
+const rig = new THREE.Group();
+rig.matrixAutoUpdate = false;
+
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  // Keep the head, hair and shoulders in view on narrow screens too.
+  const halfTan = Math.tan(THREE.MathUtils.degToRad(15));
+  camDist = Math.max(23, 11.5 / (2 * halfTan * camera.aspect));
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Handprints are painted into a texture in the head's UV space, so they stick to the skin as it moves.
+const bruiseCanvas = document.createElement('canvas');
+bruiseCanvas.width = bruiseCanvas.height = 1024;
+const bctx = bruiseCanvas.getContext('2d');
+const bruiseTex = new THREE.CanvasTexture(bruiseCanvas);
+
+// Eye and mouth centres in the skin texture's UV space.
+const EYE_UV = [new THREE.Vector2(0.431, 0.698), new THREE.Vector2(0.571, 0.700)];
+const MOUTH_UV = new THREE.Vector2(0.5, 0.536);
+// The jaw hinges near the ears; head-space units.
+const JAW_PIVOT = new THREE.Vector3(-0.09, 1.1, 0);
+const JAW_MAX = 0.2;
+
+const MAX_RIPPLES = 4;
+const uniforms = {
+  uTime: { value: 0 },
+  uHits: { value: Array.from({ length: MAX_RIPPLES }, () => new THREE.Vector4(0, 0, 0, -99)) },
+  uAmp: { value: new Array(MAX_RIPPLES).fill(0) },
+  uBruise: { value: bruiseTex },
+  uCry: { value: 0 },
+  uFlush: { value: 0 },
+  uHead: { value: new THREE.Matrix4() },
+  uEyes: { value: EYE_UV },
+  uMouthUv: { value: MOUTH_UV },
+  uOpen: { value: 1 },
+  uMouth: { value: 0 },
+  uJaw: { value: 0 },
+  uJawPivot: { value: JAW_PIVOT }
+};
+
+// The scan is one mesh, so the head turns on the neck by blending vertices toward a rotation
+// about the neck: weight 1 for the head, fading to 0 across the neck so the shoulders stay put.
+const NECK = new THREE.Vector3(0, -1.8, -0.3);
+const headM = uniforms.uHead.value, headInv = new THREE.Matrix4(), headRot3 = new THREE.Matrix3();
+const ss = THREE.MathUtils.smoothstep;
+function headWeight(p) {
+  const wy = ss(p.y, -2.0, -0.9), wx = 1 - ss(Math.abs(p.x), 1.5, 2.3);
+  return THREE.MathUtils.lerp(wy * wx, 1, ss(p.y, -0.9, 0));
+}
+const VERTEX_HELPERS = `
+  float headWeight(vec3 p) {
+    float wy = smoothstep(-2.0, -0.9, p.y), wx = 1.0 - smoothstep(1.5, 2.3, abs(p.x));
+    return mix(wy * wx, 1.0, smoothstep(-0.9, 0.0, p.y));
   }
-  requestAnimationFrame(tick);
+  // Lower face below the lips, fading out down the throat.
+  float jawWeight(vec3 p) {
+    return (1.0 - smoothstep(0.36, 0.47, p.y)) * smoothstep(-1.5, -0.6, p.y)
+      * smoothstep(0.4, 1.1, p.z) * (1.0 - smoothstep(0.9, 1.4, abs(p.x + 0.1)));
+  }`;
+// Rest-pose head-space point -> where it is now, after the neck turn.
+function deform(local) {
+  const w = headWeight(local);
+  return local.clone().lerp(local.clone().applyMatrix4(headM), w);
+}
 
-  function layoutOverlays() {
-    const s = elf.clientWidth / IMG_W;
-    Object.assign(blush.style, {
-      left: (FACE.x - FACE.rx * 1.1) * s + 'px', top: (FACE.y - FACE.ry * 0.6) * s + 'px',
-      width: FACE.rx * 2.2 * s + 'px', height: FACE.ry * 1.6 * s + 'px'
-    });
-    Object.assign(dizzy.style, { left: FACE.x * s + 'px', top: (FACE.y - FACE.ry * 1.6) * s + 'px' });
-  }
-  window.addEventListener('resize', layoutOverlays);
-  elf.querySelector('img').addEventListener('load', layoutOverlays);
-  layoutOverlays();
-
-  // --- Sound (synthesized, no files needed) ---
-  let ctx;
-  function audio() {
-    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if (ctx.state === 'suspended') ctx.resume();
-    return ctx;
-  }
-  function noiseBurst(dur, freq, q, gain) {
-    const a = audio(), n = Math.floor(a.sampleRate * dur);
-    const buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
-    const src = a.createBufferSource(); src.buffer = buf;
-    const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
-    const g = a.createGain(); g.gain.value = gain;
-    src.connect(f).connect(g).connect(a.destination); src.start();
-  }
-  function tone(type, from, to, dur, gain) {
-    const a = audio(), t = a.currentTime;
-    const o = a.createOscillator(), g = a.createGain();
-    o.type = type; o.frequency.setValueAtTime(from, t); o.frequency.exponentialRampToValueAtTime(to, t + dur);
-    g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur);
-  }
-  function slapSound(power) {
-    if (muted) return;
-    noiseBurst(0.12, 2200, 0.8, 0.9 * Math.min(power, 1.6));
-    noiseBurst(0.05, 5000, 1.2, 0.5);
-    tone('sine', 160, 50, 0.18, 0.6 * Math.min(power, 1.5));
-    if (Math.random() < 0.25) setTimeout(() => tone('triangle', 900, 250, 0.35, 0.15), 60);
-  }
-  function whoosh() { if (!muted) noiseBurst(0.2, 900, 0.5, 0.25); }
-
-  // --- Pointer tracking for swipe power ---
-  let px = 0, py = 0, pt = 0, speed = 0;
-  function onMove(e) {
-    const now = performance.now(), dt = Math.max(now - pt, 1);
-    const v = Math.hypot(e.clientX - px, e.clientY - py) / dt;
-    speed = speed * 0.6 + v * 0.4;
-    px = e.clientX; py = e.clientY; pt = now;
-    hand.style.left = px + 'px'; hand.style.top = py + 'px';
-    hand.classList.remove('hidden');
-    $('power').style.width = Math.min(100, speed * 40) + '%';
-  }
-  stage.addEventListener('pointermove', onMove);
-  stage.addEventListener('pointerleave', () => hand.classList.add('hidden'));
-  setInterval(() => { speed *= 0.7; $('power').style.width = Math.min(100, speed * 40) + '%'; }, 80);
-
-  function inEllipse(x, y, r) { return ((x - r.x) / r.rx) ** 2 + ((y - r.y) / r.ry) ** 2 <= 1; }
-
-  stage.addEventListener('pointerdown', e => {
-    onMove(e);
-    audio();
-    hand.classList.add('swing');
-    setTimeout(() => hand.classList.remove('swing'), 120);
-
-    const rect = shaker.getBoundingClientRect();
-    const s = rect.width / IMG_W;
-    const ix = (e.clientX - rect.left) / s, iy = (e.clientY - rect.top) / s;
-
-    if (inEllipse(ix, iy, SQUIRREL)) {
-      whoosh();
-      say(e.clientX, e.clientY - 30, pick(['Leave me out of this!', 'Not me!!', 'Eek!', 'I saw nothing.']));
-      return;
-    }
-    const face = inEllipse(ix, iy, FACE);
-    if (!face && !inEllipse(ix, iy, BODY)) { whoosh(); popWord(e.clientX, e.clientY, 'MISS', '#9ad'); return; }
-
-    const power = Math.min(0.8 + speed * 0.6, 3) * (face ? 1.5 : 1);
-    slapAt(e.clientX, e.clientY, ix, iy, s, power, face);
-  });
-
-  // Face slaps go through the guard check; body slaps always land.
-  function slapAt(cx, cy, ix, iy, s, power, face) {
-    if (face && guardUp) {
-      if (power >= 3.6) { guardBreak(cx, cy); hit(cx, cy, ix, iy, s, power, true); }
-      else blocked(cx, cy);
-      return;
-    }
-    hit(cx, cy, ix, iy, s, power, face);
-  }
-
-  function hit(cx, cy, ix, iy, s, power, face) {
-    const now = performance.now();
-    combo = now - lastHit < 1200 ? combo + 1 : 1;
-    lastHit = now;
-    count++;
-    $('count').textContent = count;
-    $('combo').textContent = 'x' + combo;
-    if (count > best) { best = count; $('best').textContent = best; try { localStorage.setItem('foggy-best', best); } catch {} }
-
-    // Knock him away from the side that was hit.
-    const dir = ix < FACE.x ? 1 : -1;
-    angVel += dir * (4 + power * 3);
-    offVel += dir * (6 + power * 6);
-    sqVel += 0.03 * power;
-    shake = Math.min(10 + power * 8 + combo, 40);
-    if (face) heat = Math.min(heat + 0.12 * power, 1);
-
-    slapSound(power);
-    flashScreen(Math.min(0.15 + power * 0.08, 0.45));
-    burst(cx, cy, power);
-    handprint(ix * s, iy * s, dir);
-    particles(cx, cy, dir, Math.round(5 + power * 4));
-
-    const words = power > 2.4 ? ['K.O.!!', 'MEGA SLAP!', 'OBLITERATED!']
-               : face ? ['SLAP!', 'WHAP!', 'SMACK!', 'THWACK!', 'POW!']
-               : ['BONK!', 'WHACK!', 'BOP!'];
-    popWord(cx, cy - 20, pick(words));
-
-    addSad((face ? 1.5 : 0.7) * (power > 2.4 ? 1.5 : 1));
-
-    if (Math.random() < 0.45) {
-      const r = shaker.getBoundingClientRect();
-      const lines = cryStage >= 2
-        ? ['*sob*', 'W-why?!', 'I want my mom 😭', 'S-stop it... *sniff*', 'WAAAH!', 'I didn\'t do anything!']
-        : ['OW!', 'Hey!!', 'Stop it!', 'Not the face!', 'Why?!', 'My goggles!', 'Ouch!', 'I\'m telling mom!', 'That\'s it, I\'m fixing a robot to slap YOU'];
-      say(r.left + FACE.x * s - dir * FACE.rx * s * 1.4, r.top + (FACE.y - FACE.ry) * s, pick(lines));
-    }
-
-    // He learns: after a face slap he may throw his hand up to block the next one.
-    if (face && cryStage < 3 && Math.random() < Math.min(0.15 + count * 0.006, 0.5)) {
-      setTimeout(() => raiseGuard(600 + Math.random() * 500), 160);
-    }
-
-    setDizzy(combo >= 5);
-    milestone(count);
-  }
-
-  // --- Guarding hand ---
-  const guard = $('guard');
-  let guardUp = false, guardTimer, guardReadyAt = 0;
-  function raiseGuard(ms) {
-    if (guardUp || performance.now() < guardReadyAt) return;
-    guardUp = true;
-    guard.classList.add('up');
-    if (Math.random() < 0.3) sayAtFace(pick(['Nope!', 'Not this time!', 'Ha!', 'Try me!']));
-    clearTimeout(guardTimer);
-    guardTimer = setTimeout(lowerGuard, ms);
-  }
-  function lowerGuard() {
-    guardUp = false;
-    guard.classList.remove('up');
-    guardReadyAt = performance.now() + 450;
-  }
-  setInterval(() => {
-    const p = cryStage === 3 ? 0.02 : Math.min(0.03 + count * 0.003, 0.2);
-    if (Math.random() < p) raiseGuard(500 + Math.random() * 800);
-  }, 350);
-
-  function blocked(cx, cy) {
-    combo = 0; $('combo').textContent = 'x0';
-    if (!muted) { tone('square', 220, 90, 0.12, 0.12); noiseBurst(0.06, 800, 1, 0.4); }
-    popWord(cx, cy - 20, 'BLOCKED!', '#7cf');
-    shake = 6;
-    guard.animate([{ transform: 'translate(0,0)' }, { transform: 'translate(-8px,6px)' }, { transform: 'translate(6px,-3px)' }, { transform: 'translate(0,0)' }], { duration: 200 });
-    if (Math.random() < 0.5) sayAtFace(pick(['Ha! Missed me!', 'Too slow!', 'Blocked! 😏', 'Nice try!']));
-    clearTimeout(guardTimer);
-    guardTimer = setTimeout(lowerGuard, 350 + Math.random() * 400);
-  }
-  function guardBreak(cx, cy) {
-    clearTimeout(guardTimer);
-    lowerGuard();
-    popWord(cx, cy - 70, 'GUARD BREAK!', '#ff8');
-  }
-  function sayAtFace(text) {
-    const r = shaker.getBoundingClientRect(), s = r.width / IMG_W;
-    say(r.left + (FACE.x + FACE.rx * 1.3) * s, r.top + (FACE.y - FACE.ry) * s, text);
-  }
-
-  // --- Crying ---
-  const tears = $('tears'), puddle = $('puddle');
-  const MOODS = ['😠', '🥺', '😢', '😭'];
-  const CRY_LINES = [null, '*sniff*...', 'W-why are you doing this?! 😢', 'WAAAAAAAAH!!! 😭'];
-  let sad = 0, cryStage = 0, puddleSize = 0, lastSob = 0;
-  function addSad(n) { sad = Math.min(sad + n, 40); updateCry(); }
-  function updateCry() {
-    const next = sad >= 26 ? 3 : sad >= 14 ? 2 : sad >= 6 ? 1 : 0;
-    if (next === cryStage) return;
-    if (next > cryStage && CRY_LINES[next]) setTimeout(() => sayAtFace(CRY_LINES[next]), 300);
-    if (next === 3) { clearTimeout(guardTimer); lowerGuard(); }
-    cryStage = next;
-    elf.dataset.cry = next;
-    $('mood').textContent = MOODS[next];
-  }
-  const DROP = 'M0 -9 C4 -2 6 2 6 5 A6 6 0 0 1 -6 5 C-6 2 -4 -2 0 -9Z';
-  function tearDrop(eye, fountain) {
-    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    p.setAttribute('d', DROP);
-    p.setAttribute('fill', 'url(#water)');
-    p.setAttribute('stroke', '#2b6ea8');
-    p.setAttribute('stroke-width', '1.2');
-    tears.appendChild(p);
-    const x0 = eye.x + eye.side * (4 + Math.random() * 6), y0 = eye.y;
-    let frames;
-    if (fountain) {
-      // Cartoon fountain: tears shoot sideways in an arc.
-      const vx = eye.side * (90 + Math.random() * 140), vy = -(40 + Math.random() * 60);
-      frames = [];
-      for (let t = 0; t <= 1.0001; t += 0.1) {
-        frames.push({ transform: `translate(${x0 + vx * t}px, ${y0 + vy * t + 260 * t * t}px) scale(${1 + t * 0.6})`, opacity: 1 - t * t * 0.6 });
+const tl = new THREE.TextureLoader();
+const skinMap = tl.load(ASSETS + 'Map-COL.jpg');
+skinMap.colorSpace = THREE.SRGBColorSpace;
+const skin = new THREE.MeshPhongMaterial({
+  map: skinMap,
+  specular: 0x2a2a2a, shininess: 28,
+  specularMap: tl.load(ASSETS + 'Map-SPEC.jpg'),
+  normalMap: tl.load(ASSETS + 'Infinite-Level_02_Tangent_SmoothUV.jpg'),
+  normalScale: new THREE.Vector2(0.8, 0.8)
+});
+skin.onBeforeCompile = sh => {
+  Object.assign(sh.uniforms, uniforms);
+  sh.vertexShader = `uniform float uTime; uniform vec4 uHits[${MAX_RIPPLES}]; uniform float uAmp[${MAX_RIPPLES}];
+    uniform mat4 uHead; uniform float uJaw; uniform vec3 uJawPivot;\n${VERTEX_HELPERS}\n` +
+    sh.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+      float hw = headWeight(position), jw = jawWeight(position);
+      mat3 jawRot = mat3(1.0, 0.0, 0.0, 0.0, cos(uJaw), sin(uJaw), 0.0, -sin(uJaw), cos(uJaw));
+      vec3 restNormal = objectNormal;
+      objectNormal = normalize(mix(objectNormal, jawRot * objectNormal, jw));
+      objectNormal = normalize(mix(objectNormal, mat3(uHead) * objectNormal, hw));`)
+    // Each slap dents the skin at the impact point and sends a fleshy ripple across the face.
+    .replace('#include <begin_vertex>', `#include <begin_vertex>
+      for (int i = 0; i < ${MAX_RIPPLES}; i++) {
+        float t = uTime - uHits[i].w;
+        if (t < 0.0 || t > 2.0) continue;
+        float d = distance(position, uHits[i].xyz);
+        float dent = -exp(-d * d * 1.4) * exp(-t * 11.0);
+        float wave = sin(d * 4.5 - t * 26.0) * exp(-t * 3.2) * exp(-d * 0.6) * 0.4;
+        transformed += restNormal * uAmp[i] * (dent + wave);
       }
-    } else {
-      const sway = eye.side * (4 + Math.random() * 6);
-      frames = [
-        { transform: `translate(${x0}px, ${y0}px) scale(.4)`, opacity: 0 },
-        { transform: `translate(${x0}px, ${y0 + 6}px) scale(1)`, opacity: 1, offset: 0.15 },
-        { transform: `translate(${x0 + sway}px, ${y0 + 40}px) scale(1)`, opacity: 1, offset: 0.6 },
-        { transform: `translate(${x0 + sway * 0.6}px, ${y0 + 72}px) scale(.8)`, opacity: 0 }
-      ];
-    }
-    p.animate(frames, { duration: fountain ? 750 : 1300 + Math.random() * 400, easing: 'linear' }).onfinish = () => p.remove();
-  }
-  function sniffle() {
-    if (muted) return;
-    noiseBurst(0.07, 3200, 2, 0.18);
-    setTimeout(() => noiseBurst(0.09, 2800, 2, 0.15), 120);
-  }
-  function wail() {
-    if (muted) return;
-    const a = audio(), t = a.currentTime;
-    const o = a.createOscillator(), lfo = a.createOscillator(), lfoGain = a.createGain();
-    const f = a.createBiquadFilter(), g = a.createGain();
-    o.type = 'sawtooth';
-    o.frequency.setValueAtTime(560, t); o.frequency.linearRampToValueAtTime(620, t + 0.25); o.frequency.exponentialRampToValueAtTime(360, t + 1.1);
-    lfo.frequency.value = 7; lfoGain.gain.value = 18;
-    lfo.connect(lfoGain).connect(o.frequency);
-    f.type = 'lowpass'; f.frequency.value = 1400;
-    g.gain.setValueAtTime(0.001, t); g.gain.linearRampToValueAtTime(0.07, t + 0.1); g.gain.exponentialRampToValueAtTime(0.001, t + 1.15);
-    o.connect(f).connect(g).connect(a.destination);
-    o.start(t); lfo.start(t); o.stop(t + 1.2); lfo.stop(t + 1.2);
-  }
-  setInterval(() => {
-    const now = performance.now();
-    if (now - lastHit > 2000) { sad = Math.max(0, sad - 0.04); updateCry(); }
-    if (cryStage === 1 && Math.random() < 0.03) tearDrop(pick(EYES), false);
-    if (cryStage === 2 && Math.random() < 0.35) tearDrop(pick(EYES), false);
-    if (cryStage === 3) {
-      EYES.forEach(e => tearDrop(e, true));
-      puddleSize = Math.min(puddleSize + 0.6, 170);
-      if (now - lastSob > 650) { lastSob = now; sqVel += 0.012; angVel += (Math.random() - 0.5) * 0.8; }
-    } else {
-      puddleSize = Math.max(0, puddleSize - 0.15);
-    }
-    puddle.setAttribute('rx', puddleSize);
-    puddle.setAttribute('ry', puddleSize * 0.09);
-    if (cryStage >= 2 && Math.random() < 0.012) sniffle();
-    if (cryStage === 3 && now - lastHit > 600 && Math.random() < 0.03) wail();
-  }, 90);
+      transformed = mix(transformed, uJawPivot + jawRot * (transformed - uJawPivot), jw);
+      transformed = mix(transformed, (uHead * vec4(transformed, 1.0)).xyz, hw);`);
+  // The scan has closed eyes and mouth, so cut them open in UV space; eyeballs and teeth sit behind.
+  sh.fragmentShader = `uniform sampler2D uBruise; uniform float uCry; uniform float uFlush; uniform vec2 uEyes[2];
+    uniform vec2 uMouthUv; uniform float uOpen; uniform float uMouth;\n` +
+    sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      float liner = 0.0;
+      for (int i = 0; i < 2; i++) {
+        vec2 d = vMapUv - uEyes[i];
+        float x = d.x / 0.036;
+        float t = max(1.0 - x * x, 0.0);
+        float top = 0.03 * pow(t, 0.6) * uOpen, bot = -0.015 * pow(t, 0.8) * uOpen;
+        if (uOpen > 0.05 && abs(x) < 1.0 && d.y < top && d.y > bot) discard;
+        float edge = 1.0 - smoothstep(0.85, 1.15, abs(x));
+        float up = d.y - top, dn = bot - d.y;
+        liner = max(liner, step(0.0, up) * (1.0 - smoothstep(0.0, 0.006, up)) * edge);
+        liner = max(liner, step(0.0, dn) * (1.0 - smoothstep(0.0, 0.004, dn)) * edge * 0.45);
+      }
+      diffuseColor.rgb *= 1.0 - liner * 0.8;
+      vec2 dm = vMapUv - uMouthUv;
+      float mx = dm.x / 0.05;
+      if (uMouth > 0.02 && abs(mx) < 1.0) {
+        float h = (0.003 + 0.014 * uMouth) * sqrt(1.0 - mx * mx);
+        if (abs(dm.y) < h) discard;
+        diffuseColor.rgb *= 1.0 - (1.0 - smoothstep(0.0, 0.006, abs(dm.y) - h)) * 0.5;
+      }
+      float bruise = texture2D(uBruise, vMapUv).a;
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.15, 0.36, 0.34), bruise);
+      float eye = min(distance(vMapUv, uEyes[0]), distance(vMapUv, uEyes[1]));
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.2, 0.55, 0.55), smoothstep(0.075, 0.0, eye) * uCry);
+      float cheeks = smoothstep(0.2, 0.05, abs(vMapUv.y - 0.6)) * smoothstep(0.2, 0.08, abs(vMapUv.x - 0.5));
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.1, 0.6, 0.58), cheeks * uFlush);`);
+};
 
-  // --- Effects ---
-  function fx(cls, x, y, html) {
-    const el = document.createElement('div');
-    el.className = 'fx ' + cls;
-    el.style.left = x + 'px'; el.style.top = y + 'px';
-    if (html) el.innerHTML = html;
-    document.body.appendChild(el);
-    return el;
-  }
-  function popWord(x, y, text, color) {
-    const el = fx('word', x, y);
-    el.textContent = text;
-    el.style.setProperty('--r', (Math.random() * 30 - 15) + 'deg');
-    if (color) el.style.color = color;
-    setTimeout(() => el.remove(), 850);
-  }
-  function burst(x, y, power) {
-    const pts = [];
-    for (let i = 0; i < 24; i++) {
-      const r = i % 2 ? 30 : 80, a = (i / 24) * Math.PI * 2;
-      pts.push(`${80 + Math.cos(a) * r},${80 + Math.sin(a) * r}`);
-    }
-    const el = fx('burst', x, y,
-      `<svg viewBox="0 0 160 160" width="100%" height="100%"><polygon points="${pts.join(' ')}" fill="#fff36b" stroke="#ff5a00" stroke-width="5"/></svg>`);
-    el.style.width = el.style.height = 120 + power * 50 + 'px';
-    el.style.margin = `-${60 + power * 25}px 0 0 -${60 + power * 25}px`;
-    setTimeout(() => el.remove(), 400);
-  }
-  function particles(x, y, dir, n) {
-    const icons = ['⭐', '✨', '💥', '💫', '🌟'];
-    for (let i = 0; i < n; i++) {
-      const el = fx('particle', x, y);
-      el.textContent = pick(icons);
-      const a = (dir > 0 ? 0 : Math.PI) + (Math.random() - 0.5) * 2.2;
-      const d = 80 + Math.random() * 160;
-      el.animate([
-        { transform: 'translate(-50%,-50%) scale(.5)', opacity: 1 },
-        { transform: `translate(calc(-50% + ${Math.cos(a) * d}px), calc(-50% + ${Math.sin(a) * d - 40}px)) scale(1.2) rotate(${Math.random() * 360}deg)`, opacity: 0 }
-      ], { duration: 600 + Math.random() * 400, easing: 'cubic-bezier(.1,.8,.3,1)' }).onfinish = () => el.remove();
-    }
-  }
-  const PRINT_SVG = `<svg viewBox="0 0 100 100" width="100%" height="100%"><g fill="rgba(225,20,30,.75)">
-    <ellipse cx="50" cy="64" rx="24" ry="26"/>
-    <rect x="25" y="14" width="11" height="40" rx="5.5" transform="rotate(-12 30 50)"/>
-    <rect x="38" y="6" width="11" height="44" rx="5.5" transform="rotate(-4 43 50)"/>
-    <rect x="51" y="8" width="11" height="42" rx="5.5" transform="rotate(4 56 50)"/>
-    <rect x="63" y="16" width="10" height="36" rx="5" transform="rotate(12 68 50)"/>
-    <rect x="70" y="50" width="11" height="30" rx="5.5" transform="rotate(50 72 62)"/></g></svg>`;
-  function handprint(x, y, dir) {
-    const el = document.createElement('div');
-    el.className = 'print';
-    el.innerHTML = PRINT_SVG;
-    el.style.left = x + 'px'; el.style.top = y + 'px';
-    el.style.transform = `rotate(${dir * (15 + Math.random() * 30)}deg) scaleX(${dir})`;
-    marks.appendChild(el);
-    if (marks.children.length > 25) marks.firstChild.remove();
-    setTimeout(() => el.remove(), 7000);
-  }
-  function flashScreen(o) {
-    flash.animate([{ opacity: o }, { opacity: 0 }], { duration: 160, easing: 'ease-out' });
-  }
-  function say(x, y, text) {
-    const el = fx('bubble', x, y);
-    el.textContent = text;
-    setTimeout(() => el.remove(), 1650);
-  }
-  let dizzyAnim;
-  function setDizzy(on) {
-    if (on && !dizzyAnim) {
-      dizzy.innerHTML = '<span>💫</span><span>⭐</span><span>💫</span><span>⭐</span>';
-      const spans = [...dizzy.children];
-      let t = 0;
-      dizzyAnim = setInterval(() => {
-        t += 0.12;
-        const r = elf.clientWidth * 0.09;
-        spans.forEach((sp, i) => {
-          const a = t + (i / spans.length) * Math.PI * 2;
-          sp.style.transform = `translate(calc(-50% + ${Math.cos(a) * r}px), calc(-50% + ${Math.sin(a) * r * 0.3}px))`;
-        });
-        if (performance.now() - lastHit > 2500) { clearInterval(dizzyAnim); dizzyAnim = null; dizzy.innerHTML = ''; }
-      }, 30);
-    }
-  }
-  const MILESTONES = { 10: 'Warming up! 🔥', 25: 'Foggy is FURIOUS 😤', 50: 'SLAP MASTER 🖐️', 100: 'LEGENDARY SLAPPER 👑', 250: 'Please... he has a family 😭' };
-  let bannerTimer;
-  function milestone(n) {
-    if (!MILESTONES[n]) return;
-    banner.textContent = MILESTONES[n];
-    banner.classList.add('show');
-    clearTimeout(bannerTimer);
-    bannerTimer = setTimeout(() => banner.classList.remove('show'), 1800);
-  }
-  function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+// Eye positions in head space for the eyeballs and tears, filled in from the mesh once it loads.
+const EYES = [{ pos: new THREE.Vector3(-0.86, 1.62, 1.84), side: -1 }, { pos: new THREE.Vector3(0.65, 1.59, 1.8), side: 1 }];
 
-  $('mute').addEventListener('click', e => { muted = !muted; e.currentTarget.textContent = muted ? '🔇' : '🔊'; });
-  $('reset').addEventListener('click', () => {
-    count = combo = 0; heat = 0; marks.innerHTML = '';
-    sad = 0; puddleSize = 0; updateCry(); lowerGuard();
-    $('count').textContent = '0'; $('combo').textContent = 'x0';
+// Head-space surface point at a UV, averaged from the nearest front-facing vertices.
+function surfaceAtUV(geo, uvPt) {
+  const pos = geo.attributes.position, uv = geo.attributes.uv, near = [];
+  for (let k = 0; k < uv.count; k++) {
+    if (pos.getZ(k) > 0) near.push([(uv.getX(k) - uvPt.x) ** 2 + (uv.getY(k) - uvPt.y) ** 2, k]);
+  }
+  near.sort((a, b) => a[0] - b[0]);
+  const out = new THREE.Vector3(), v = new THREE.Vector3();
+  let w = 0;
+  for (const [d, k] of near.slice(0, 4)) {
+    const ww = 1 / (Math.sqrt(d) + 1e-4);
+    out.addScaledVector(v.fromBufferAttribute(pos, k), ww);
+    w += ww;
+  }
+  return out.divideScalar(w);
+}
+
+new GLTFLoader().load(ASSETS + 'LeePerrySmith.glb', gltf => {
+  head = gltf.scene.children.find(o => o.isMesh) || gltf.scene.getObjectByProperty('isMesh', true);
+  head.material = skin;
+  head.position.set(0, -NECK_Y, 0);
+  pivot.add(head);
+  head.add(rig);
+
+  EYES.forEach((eye, i) => {
+    // The lid UVs are stretched, so centre the eye between the opening's two corners in real space.
+    const uv = EYE_UV[i], corner = du => surfaceAtUV(head.geometry, new THREE.Vector2(uv.x + du, uv.y));
+    eye.surface = surfaceAtUV(head.geometry, uv);
+    eye.surface.x = (corner(-0.03).x + corner(0.03).x) / 2;
+    eye.surface.y += 0.05;
+    eye.pos.copy(eye.surface).add(new THREE.Vector3(0, 0, 0.06));
   });
-  window.addEventListener('keydown', e => {
-    if (e.code !== 'Space') return;
-    e.preventDefault();
-    const r = shaker.getBoundingClientRect(), s = r.width / IMG_W;
-    const side = Math.random() < 0.5 ? -1 : 1;
-    const ix = FACE.x + side * FACE.rx * 0.55, iy = FACE.y + 15;
-    audio();
-    slapAt(r.left + ix * s, r.top + iy * s, ix, iy, s, 1.4, true);
+  buildEyes();
+  buildMouth();
+  buildGlasses();
+  buildHair(head.geometry);
+  $('loading').classList.add('done');
+}, undefined, () => { $('loading').textContent = 'Could not load Foggy 😢 (check your connection)'; });
+
+// --- Eyes: real eyeballs behind the cut-open lids, following your hand ---
+const EYE_R = 0.31;
+const eyeballs = [];
+function irisTexture() {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#f1ebe4';
+  g.fillRect(0, 0, 512, 256);
+  g.strokeStyle = 'rgba(190,60,60,.25)';
+  g.lineWidth = 1.2;
+  for (let i = 0; i < 26; i++) {
+    let x = 128 + (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 50), y = 60 + Math.random() * 136;
+    g.beginPath(); g.moveTo(x, y);
+    for (let s = 0; s < 4; s++) { x += (128 - x) * 0.2 + (Math.random() - 0.5) * 12; y += (Math.random() - 0.5) * 14; g.lineTo(x, y); }
+    g.stroke();
+  }
+  // The sphere's +z (where it looks) sits at u = 0.25, v = 0.5.
+  const cx = 128, cy = 128;
+  const iris = g.createRadialGradient(cx, cy, 8, cx, cy, 41);
+  iris.addColorStop(0, '#b98a3a'); iris.addColorStop(0.35, '#6f8f3d'); iris.addColorStop(0.85, '#3d5a26'); iris.addColorStop(1, '#1d2a12');
+  g.fillStyle = iris;
+  g.beginPath(); g.arc(cx, cy, 41, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = 'rgba(20,30,10,.35)';
+  for (let i = 0; i < 60; i++) {
+    const a = (i / 60) * Math.PI * 2;
+    g.beginPath(); g.moveTo(cx + Math.cos(a) * 14, cy + Math.sin(a) * 14); g.lineTo(cx + Math.cos(a) * 39, cy + Math.sin(a) * 39); g.stroke();
+  }
+  g.fillStyle = '#080808';
+  g.beginPath(); g.arc(cx, cy, 15, 0, Math.PI * 2); g.fill();
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+function buildEyes() {
+  const mat = new THREE.MeshPhongMaterial({ map: irisTexture(), specular: 0x666666, shininess: 140 });
+  const geo = new THREE.SphereGeometry(EYE_R, 32, 24);
+  EYES.forEach(eye => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.copy(eye.surface).add(new THREE.Vector3(0, 0, -EYE_R - 0.03));
+    rig.add(m);
+    eyeballs.push(m);
   });
-})();
+}
+let eyeOpen = 1, blinkUntil = 0, nextBlink = performance.now() + 2500, cursorNdc = null;
+const lookTarget = new THREE.Vector3(0, 0, 30), lookGoal = new THREE.Vector3();
+function updateEyes(now) {
+  if (now > nextBlink) { blinkUntil = now + 130; nextBlink = now + 2000 + Math.random() * 3500; }
+  const goalOpen = now < blinkUntil ? 0 : [1, 0.85, 0.7, 0.4][cryStage];
+  eyeOpen += (goalOpen - eyeOpen) * 0.45;
+  uniforms.uOpen.value = eyeOpen;
+  if (!head) return;
+  if (dizzyOn) {
+    // Eyes roll around while he's dizzy.
+    const t = now / 180;
+    lookGoal.set(-0.1 + Math.cos(t) * 2.5, 1.6 + Math.sin(t) * 2.5, 8);
+    head.localToWorld(lookGoal.copy(deform(lookGoal)));
+  } else if (cursorNdc) {
+    raycaster.setFromCamera(cursorNdc, camera);
+    raycaster.ray.at(camDist * 0.75, lookGoal);
+  } else {
+    lookGoal.copy(camera.position);
+  }
+  lookTarget.lerp(lookGoal, 0.25);
+  eyeballs.forEach(e => e.lookAt(lookTarget));
+}
+
+// --- Mouth: dark cavity, tongue and teeth behind the lips; the lower set rides on the jaw ---
+let mouth = 0, mouthVel = 0, teethOut = false;
+const lowerJaw = new THREE.Group();
+const missingTeeth = [];
+const toothMat = new THREE.MeshPhongMaterial({ color: 0xf1ead8, specular: 0x555555, shininess: 70 });
+function buildMouth() {
+  const cavity = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 16), new THREE.MeshPhongMaterial({ color: 0x3a0d0f, shininess: 10 }));
+  cavity.position.set(-0.09, 0.3, 1.45);
+  rig.add(cavity);
+
+  lowerJaw.position.copy(JAW_PIVOT);
+  rig.add(lowerJaw);
+  const tongue = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), new THREE.MeshPhongMaterial({ color: 0xa8444c, shininess: 40 }));
+  tongue.scale.set(0.32, 0.1, 0.38);
+  tongue.position.set(-0.09, 0.18, 1.7).sub(JAW_PIVOT);
+  lowerJaw.add(tongue);
+
+  const ARC_Z = 1.55;
+  for (let i = 0; i < 8; i++) {
+    const a = (i - 3.5) * 0.2, front = i === 3 || i === 4;
+    const up = new THREE.Mesh(new RoundedBoxGeometry(0.095, front ? 0.19 : 0.16, 0.07, 2, 0.025), toothMat);
+    up.position.set(-0.09 + Math.sin(a) * 0.5, front ? 0.39 : 0.4, ARC_Z + Math.cos(a) * 0.5);
+    up.rotation.y = a;
+    rig.add(up);
+    if (front) missingTeeth.push(up);
+    const low = new THREE.Mesh(new RoundedBoxGeometry(0.085, 0.13, 0.065, 2, 0.022), toothMat);
+    low.position.set(-0.09 + Math.sin(a) * 0.46, 0.27, ARC_Z + Math.cos(a) * 0.46).sub(JAW_PIVOT);
+    low.rotation.y = a;
+    lowerJaw.add(low);
+  }
+}
+
+// --- Glasses ---
+const glasses = new THREE.Group();
+const lenses = [];
+let crackLevel = 0, glassesOn = true;
+function roundRect(w, h, r, path = new THREE.Shape()) {
+  const x = -w / 2, y = -h / 2;
+  path.moveTo(x + r, y);
+  path.lineTo(x + w - r, y); path.quadraticCurveTo(x + w, y, x + w, y + r);
+  path.lineTo(x + w, y + h - r); path.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  path.lineTo(x + r, y + h); path.quadraticCurveTo(x, y + h, x, y + h - r);
+  path.lineTo(x, y + r); path.quadraticCurveTo(x, y, x + r, y);
+  return path;
+}
+function buildGlasses() {
+  const frameMat = new THREE.MeshPhongMaterial({ color: 0x15100c, specular: 0x777777, shininess: 90 });
+  const lensMat = new THREE.MeshPhongMaterial({ color: 0xd8ecff, specular: 0xffffff, shininess: 200, transparent: true, opacity: 0.18, depthWrite: false });
+  const LW = 1.2, LH = 0.88, IW = 1.06, IH = 0.74, Z = 2.32;
+  const ring = roundRect(LW, LH, 0.3);
+  ring.holes.push(roundRect(IW, IH, 0.24, new THREE.Path()));
+  const frameGeo = new THREE.ExtrudeGeometry(ring, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2, curveSegments: 8 });
+  const lensGeo = new THREE.ShapeGeometry(roundRect(IW, IH, 0.24), 8);
+  EYES.forEach(eye => {
+    const lens = new THREE.Group();
+    lens.position.set(eye.surface.x, eye.surface.y + 0.05, Z);
+    lens.rotation.set(0.06, eye.side * 0.08, 0);
+    lens.add(new THREE.Mesh(frameGeo, frameMat));
+    const glass = new THREE.Mesh(lensGeo, lensMat);
+    glass.position.z = 0.03;
+    lens.add(glass);
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 180;
+    const tex = new THREE.CanvasTexture(c);
+    const crack = new THREE.Mesh(new THREE.PlaneGeometry(IW, IH), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+    crack.position.z = 0.045;
+    crack.visible = false;
+    lens.add(crack);
+    lenses.push({ crack, ctx: c.getContext('2d'), tex, side: eye.side, cracks: 0 });
+    glasses.add(lens);
+  });
+  const [l, r] = EYES.map(e => e.surface);
+  const tube = (pts, rad = 0.03) => new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, rad, 6), frameMat);
+  glasses.add(tube([new THREE.Vector3(l.x + IW / 2, l.y + 0.12, Z + 0.03), new THREE.Vector3((l.x + r.x) / 2, l.y + 0.22, Z + 0.08), new THREE.Vector3(r.x - IW / 2, r.y + 0.12, Z + 0.03)]));
+  EYES.forEach(({ surface: s, side }) => {
+    const x0 = s.x + side * (LW / 2 - 0.02), cx = -0.1;
+    glasses.add(tube([
+      new THREE.Vector3(x0, s.y + 0.3, Z - 0.05),
+      new THREE.Vector3(cx + side * 1.75, s.y + 0.3, 1.4),
+      new THREE.Vector3(cx + side * 1.92, s.y + 0.2, 0.2),
+      new THREE.Vector3(cx + side * 1.85, s.y - 0.15, -0.35)
+    ], 0.035));
+  });
+  rig.add(glasses);
+}
+// Spider-web cracks drawn into a lens overlay; more slaps, more cracks.
+function drawCrack(lens) {
+  const g = lens.ctx, W = 256, H = 180;
+  const ox = W * (0.25 + Math.random() * 0.5), oy = H * (0.25 + Math.random() * 0.5);
+  const spokes = 7 + Math.floor(Math.random() * 4), ends = [];
+  g.lineCap = 'round';
+  for (let i = 0; i < spokes; i++) {
+    const a = (i / spokes) * Math.PI * 2 + Math.random() * 0.5;
+    let x = ox, y = oy;
+    const pts = [[x, y]];
+    const len = 60 + Math.random() * 120;
+    for (let s = 1; s <= 6; s++) {
+      const r = (s / 6) * len, aa = a + (Math.random() - 0.5) * 0.35;
+      x = ox + Math.cos(aa) * r; y = oy + Math.sin(aa) * r;
+      pts.push([x, y]);
+    }
+    ends.push(pts);
+    for (const [style, w, off] of [['rgba(0,0,0,.35)', 2.4, 1], ['rgba(255,255,255,.9)', 1.3, 0]]) {
+      g.strokeStyle = style; g.lineWidth = w;
+      g.beginPath(); pts.forEach(([px, py], k) => k ? g.lineTo(px + off, py + off) : g.moveTo(px + off, py + off)); g.stroke();
+    }
+  }
+  // Concentric rings joining the spokes.
+  g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1;
+  for (const ring of [2, 4]) {
+    g.beginPath();
+    ends.forEach((pts, k) => { const [x, y] = pts[ring]; k ? g.lineTo(x, y) : g.moveTo(x, y); });
+    g.closePath(); g.stroke();
+  }
+  const fog = g.createRadialGradient(ox, oy, 0, ox, oy, 28);
+  fog.addColorStop(0, 'rgba(255,255,255,.55)'); fog.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = fog; g.fillRect(ox - 30, oy - 30, 60, 60);
+  lens.cracks++;
+  lens.crack.visible = true;
+  lens.tex.needsUpdate = true;
+}
+
+// --- Big curly hair: hundreds of helix curls grown out of the scalp ---
+const hair = new THREE.Group();
+const HAIR_C = new THREE.Vector3(-0.1, 1.8, -0.3);
+let hairFill = null;
+const hairLag = new THREE.Vector3(), hairVel = new THREE.Vector3();
+class Helix extends THREE.Curve {
+  getPoint(t, target = new THREE.Vector3()) {
+    const a = t * Math.PI * 2 * 2.5;
+    return target.set(Math.cos(a) * 0.12, (t - 0.5) * 0.42, Math.sin(a) * 0.12);
+  }
+}
+function isScalp(p) {
+  const ear = Math.abs(p.x + 0.1) > 1.5 && p.y < 2.1 && p.z > -0.7;
+  return !ear && (p.y > 2.7 || (p.y > 1.95 && p.z < 1.1) || (p.z < -0.5 && p.y > -0.2));
+}
+function buildHair(geo) {
+  const pos = geo.attributes.position, nor = geo.attributes.normal, scalp = [];
+  const p = new THREE.Vector3(), n = new THREE.Vector3();
+  for (let k = 0; k < pos.count; k++) if (isScalp(p.fromBufferAttribute(pos, k))) scalp.push(k);
+
+  hair.position.copy(HAIR_C);
+  rig.add(hair);
+  const CURLS = 1700, FILL = 260;
+  const curlMat = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x3a2a1a, shininess: 30 });
+  const curls = new THREE.InstancedMesh(new THREE.TubeGeometry(new Helix(), 32, 0.042, 5, false), curlMat, CURLS);
+  // Dark inner volume so the scalp doesn't show between curls; kept deep so it reads as shadow.
+  hairFill = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshPhongMaterial({ color: 0x1e120a, specular: 0x000000, shininess: 2 }), FILL);
+  const shades = [0x3b2414, 0x4a2c17, 0x2c1a0d, 0x5a3820, 0x43291a].map(c => new THREE.Color(c));
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), at = new THREE.Vector3(), dir = new THREE.Vector3();
+  const place = (i, mesh, depthMax, size) => {
+    const k = scalp[Math.floor(Math.random() * scalp.length)];
+    p.fromBufferAttribute(pos, k); n.fromBufferAttribute(nor, k);
+    dir.copy(p).sub(HAIR_C).normalize().lerp(n, 0.4).add(new THREE.Vector3(0, 0.25, 0)).normalize();
+    // Less volume over the forehead (keeps the eyes clear) and low at the back.
+    const vol = (p.z > 1.0 ? 0.45 : 1) * (p.y < 1.2 ? 0.7 : 1);
+    at.copy(p).addScaledVector(dir, (0.08 + Math.random() ** 0.7 * depthMax) * vol).sub(HAIR_C);
+    q.setFromEuler(new THREE.Euler(Math.random() * 6.3, Math.random() * 6.3, Math.random() * 6.3));
+    m.compose(at, q, s.setScalar(size()));
+    mesh.setMatrixAt(i, m);
+  };
+  for (let i = 0; i < CURLS; i++) {
+    place(i, curls, 1.15, () => 0.8 + Math.random() * 0.7);
+    curls.setColorAt(i, shades[Math.floor(Math.random() * shades.length)]);
+  }
+  for (let i = 0; i < FILL; i++) place(i, hairFill, 0.5, () => 0.28 + Math.random() * 0.12);
+  hair.add(hairFill, curls);
+}
+
+// --- Head and camera physics (damped springs, fixed 60 Hz steps) ---
+const rot = new THREE.Vector3(), rotVel = new THREE.Vector3(), rest = new THREE.Vector3();
+const off = new THREE.Vector3(), offVel = new THREE.Vector3();
+let squash = 0, sqVel = 0, shake = 0;
+let camYaw = 0, camYawVel = 0, camPitch = 0, camPitchVel = 0, fovKick = 0, roll = 0;
+let simTime = 0, slowUntil = 0;
+const effects = [];
+
+function step() {
+  for (const a of ['x', 'y', 'z']) {
+    rotVel[a] += -0.07 * (rot[a] - rest[a]) - 0.11 * rotVel[a];
+    rot[a] = THREE.MathUtils.clamp(rot[a] + rotVel[a], -0.9, 0.9);
+    offVel[a] += -0.08 * off[a] - 0.14 * offVel[a];
+    off[a] += offVel[a];
+    // Hair lags behind the head and bounces.
+    hairVel[a] += -0.1 * hairLag[a] - 0.1 * hairVel[a] - rotVel[a] * 0.3;
+    hairLag[a] = THREE.MathUtils.clamp(hairLag[a] + hairVel[a], -0.35, 0.35);
+  }
+  sqVel += -0.2 * squash - 0.18 * sqVel; squash += sqVel;
+  const mouthGoal = cryStage === 3 ? 0.55 + 0.3 * Math.sin(simTime * 5) : cryStage === 2 ? 0.15 : teethOut ? 0.22 : 0;
+  mouthVel += (mouthGoal - mouth) * 0.1 - mouthVel * 0.22;
+  mouth = THREE.MathUtils.clamp(mouth + mouthVel, 0, 1.1);
+  camYawVel += -0.025 * camYaw - 0.09 * camYawVel; camYaw += camYawVel;
+  camPitchVel += -0.03 * camPitch - 0.1 * camPitchVel; camPitch += camPitchVel;
+  fovKick *= 0.9; roll *= 0.9; shake *= 0.86;
+  simTime += 1 / 60;
+  for (let i = effects.length - 1; i >= 0; i--) if (!effects[i]()) effects.splice(i, 1);
+}
+
+let lastFrame = performance.now(), acc = 0, lastFade = 0;
+const tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), tmpM = new THREE.Matrix4();
+function frame(now) {
+  const dt = Math.min(now - lastFrame, 100);
+  lastFrame = now;
+  acc += dt * (now < slowUntil ? 0.22 : 1) / (1000 / 60);
+  while (acc >= 1) { step(); acc -= 1; }
+  uniforms.uTime.value = simTime + acc / 60;
+
+  // Head turns on the neck; the shoulders follow a little.
+  headM.compose(NECK, tmpQ.setFromEuler(tmpE.set(rot.x, rot.y, rot.z, 'YXZ')), tmpV.set(1 + squash, 1 - squash, 1 + squash))
+    .multiply(tmpM.makeTranslation(-NECK.x, -NECK.y, -NECK.z));
+  headInv.copy(headM).invert();
+  headRot3.setFromMatrix4(headM);
+  rig.matrix.copy(headM);
+  pivot.rotation.set(rot.x * 0.12, rot.y * 0.15, rot.z * 0.12);
+  pivot.position.set(off.x, NECK_Y + off.y, off.z);
+  pivot.updateMatrixWorld();
+  hair.rotation.set(hairLag.x, hairLag.y, hairLag.z);
+  uniforms.uMouth.value = mouth;
+  uniforms.uJaw.value = lowerJaw.rotation.x = mouth * JAW_MAX;
+
+  const sx = shake > 0.3 ? (Math.random() - 0.5) * shake * 0.03 : 0;
+  const sy = shake > 0.3 ? (Math.random() - 0.5) * shake * 0.03 : 0;
+  camera.position.set(
+    Math.sin(camYaw) * Math.cos(camPitch) * camDist + sx,
+    LOOK.y + 0.4 + Math.sin(camPitch) * camDist + sy,
+    Math.cos(camYaw) * Math.cos(camPitch) * camDist);
+  camera.lookAt(LOOK);
+  camera.rotateZ(roll);
+  camera.fov = 30 - fovKick;
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+
+  heat = Math.max(0, heat - 0.0025);
+  uniforms.uFlush.value = Math.min(heat, 0.9);
+  uniforms.uCry.value += ((cryStage / 3) - uniforms.uCry.value) * 0.03;
+  if (now - lastFade > 120) { lastFade = now; fadeBruises(); }
+  updateEyes(now);
+
+  if (combo && now - lastHit > 1200) { combo = 0; $('combo').textContent = 'x0'; }
+  updateDizzy();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+function fadeBruises() {
+  bctx.globalCompositeOperation = 'destination-out';
+  bctx.fillStyle = 'rgba(0,0,0,.02)';
+  bctx.fillRect(0, 0, 1024, 1024);
+  bctx.globalCompositeOperation = 'source-over';
+  bruiseTex.needsUpdate = true;
+}
+
+// Head-space point -> screen pixels.
+function toScreen(local) {
+  tmpV.copy(local);
+  if (head) head.localToWorld(tmpV.copy(deform(local)));
+  tmpV.project(camera);
+  const r = canvas.getBoundingClientRect();
+  return { x: r.left + (tmpV.x + 1) / 2 * r.width, y: r.top + (1 - tmpV.y) / 2 * r.height };
+}
+// Head-space direction -> world direction, after the neck turn.
+function headDir(x, y, z) {
+  return new THREE.Vector3(x, y, z).transformDirection(headM).transformDirection(head.matrixWorld);
+}
+
+// --- Sound (synthesized, no files needed) ---
+let ctx;
+function audio() {
+  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (ctx.state === 'suspended') ctx.resume();
+  return ctx;
+}
+function noiseBurst(dur, freq, q, gain) {
+  const a = audio(), n = Math.floor(a.sampleRate * dur);
+  const buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+  const src = a.createBufferSource(); src.buffer = buf;
+  const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+  const g = a.createGain(); g.gain.value = gain;
+  src.connect(f).connect(g).connect(a.destination); src.start();
+}
+function tone(type, from, to, dur, gain) {
+  const a = audio(), t = a.currentTime;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(from, t); o.frequency.exponentialRampToValueAtTime(to, t + dur);
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur);
+}
+function slapSound(power) {
+  if (muted) return;
+  noiseBurst(0.12, 2200, 0.8, 0.9 * Math.min(power, 1.6));
+  noiseBurst(0.05, 5000, 1.2, 0.5);
+  tone('sine', 160, 50, 0.18, 0.6 * Math.min(power, 1.5));
+  if (Math.random() < 0.25) setTimeout(() => tone('triangle', 900, 250, 0.35, 0.15), 60);
+}
+function whoosh() { if (!muted) noiseBurst(0.2, 900, 0.5, 0.25); }
+function glassSound(shatter) {
+  if (muted) return;
+  noiseBurst(shatter ? 0.35 : 0.1, 6500, 2, shatter ? 0.7 : 0.45);
+  for (let i = 0; i < (shatter ? 7 : 3); i++) {
+    setTimeout(() => tone('triangle', 2400 + Math.random() * 2600, 1500 + Math.random() * 800, 0.25, 0.07), i * (shatter ? 45 : 30));
+  }
+}
+function crunchSound() {
+  if (muted) return;
+  noiseBurst(0.09, 1400, 1.5, 0.8);
+  setTimeout(() => noiseBurst(0.06, 2600, 2, 0.5), 50);
+  setTimeout(() => tone('square', 1600, 700, 0.08, 0.06), 90);
+}
+
+// --- Pointer tracking for swipe power and direction ---
+let px = 0, py = 0, pt = 0, speed = 0, svx = 0, svy = 0;
+function onMove(e) {
+  const now = performance.now(), dt = Math.max(now - pt, 1);
+  const vx = (e.clientX - px) / dt, vy = (e.clientY - py) / dt;
+  svx = svx * 0.6 + vx * 0.4; svy = svy * 0.6 + vy * 0.4;
+  speed = speed * 0.6 + Math.hypot(vx, vy) * 0.4;
+  px = e.clientX; py = e.clientY; pt = now;
+  hand.style.left = px + 'px'; hand.style.top = py + 'px';
+  hand.classList.remove('hidden');
+  $('power').style.width = Math.min(100, speed * 40) + '%';
+  const r = canvas.getBoundingClientRect();
+  cursorNdc = new THREE.Vector2((px - r.left) / r.width * 2 - 1, -((py - r.top) / r.height) * 2 + 1);
+}
+stage.addEventListener('pointermove', onMove);
+stage.addEventListener('pointerleave', () => { hand.classList.add('hidden'); cursorNdc = null; });
+setInterval(() => { speed *= 0.7; svx *= 0.7; svy *= 0.7; $('power').style.width = Math.min(100, speed * 40) + '%'; }, 80);
+
+// The CPU copy of the mesh is in rest pose, so test the head against the ray with the neck turn
+// undone, test the shoulders against the plain ray, and keep whichever real hit is nearest.
+// Slaps that land in the hair count too.
+const raycaster = new THREE.Raycaster();
+function pick3D(cx, cy) {
+  if (!head) return null;
+  const r = canvas.getBoundingClientRect();
+  raycaster.setFromCamera(new THREE.Vector2((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1), camera);
+  const worldRay = raycaster.ray.clone();
+  const toLocal = tmpM.copy(head.matrixWorld).invert();
+  let best = null;
+  for (const wantHead of [true, false]) {
+    raycaster.ray.copy(worldRay);
+    if (wantHead) raycaster.ray.applyMatrix4(toLocal).applyMatrix4(headInv).applyMatrix4(head.matrixWorld);
+    const h = raycaster.intersectObject(head, false)
+      .find(h => (headWeight(head.worldToLocal(h.point.clone())) > 0.5) === wantHead);
+    if (!h) continue;
+    const local = head.worldToLocal(h.point.clone());
+    const point = head.localToWorld(wantHead ? deform(local) : local.clone());
+    const normal = h.face.normal.clone();
+    if (wantHead) normal.applyMatrix3(headRot3);
+    normal.transformDirection(head.matrixWorld);
+    const dist = point.distanceTo(worldRay.origin);
+    if (!best || dist < best.dist) best = { point, local, normal, localNormal: h.face.normal, uv: h.uv, dist };
+  }
+  if (hairFill) {
+    raycaster.ray.copy(worldRay);
+    const h = raycaster.intersectObject(hairFill, false)[0];
+    if (h && (!best || h.distance < best.dist)) {
+      const local = head.worldToLocal(h.point.clone()).applyMatrix4(headInv);
+      const normal = h.point.clone().sub(head.localToWorld(deform(HAIR_C))).normalize();
+      best = { point: h.point, local, normal, localNormal: new THREE.Vector3(0, 1, 0), uv: null, dist: h.distance, hair: true };
+    }
+  }
+  return best;
+}
+
+stage.addEventListener('pointerdown', e => {
+  onMove(e);
+  audio();
+  hand.classList.add('swing');
+  setTimeout(() => hand.classList.remove('swing'), 120);
+
+  const hitInfo = pick3D(e.clientX, e.clientY);
+  if (!hitInfo) { whoosh(); popWord(e.clientX, e.clientY, 'MISS', '#9ad'); return; }
+  const lp = hitInfo.local;
+  const face = hitInfo.localNormal.z > 0.35 && lp.y > -1.0 && lp.y < 2.8;
+  const power = Math.min(0.8 + speed * 0.6, 3) * (face ? 1.5 : 1);
+  slapAt(e.clientX, e.clientY, hitInfo, power, face);
+});
+
+// While he's guarding, slaps are blocked unless they're hard enough to break through.
+function slapAt(cx, cy, hitInfo, power, face) {
+  if (guardUp) {
+    if (power >= (face ? 3.6 : 2.4)) { guardBreak(cx, cy); hit(cx, cy, hitInfo, power, face); }
+    else blocked(cx, cy);
+    return;
+  }
+  hit(cx, cy, hitInfo, power, face);
+}
+
+function hit(cx, cy, hitInfo, power, face) {
+  const now = performance.now();
+  combo = now - lastHit < 1200 ? combo + 1 : 1;
+  lastHit = now;
+  count++;
+  $('count').textContent = count;
+  $('combo').textContent = 'x' + combo;
+  if (count > best) { best = count; $('best').textContent = best; try { localStorage.setItem('foggy-best', best); } catch {} }
+
+  const p = hitInfo.point.clone(), n = hitInfo.normal.clone(), lp = hitInfo.local;
+
+  // Slap force: into the skin plus along the swipe. A plain click slaps inward from the side that was hit.
+  const camRight = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+  const camUp = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+  const swipe = speed > 0.25
+    ? camRight.clone().multiplyScalar(svx).addScaledVector(camUp, -svy).normalize()
+    : camRight.clone().multiplyScalar(lp.x < 0 ? 1 : -1);
+  const F = n.clone().multiplyScalar(-0.7).add(swipe).normalize().multiplyScalar(power);
+
+  // Torque about the neck turns, tilts and nods the head realistically.
+  const tau = p.clone().sub(head.localToWorld(NECK.clone())).cross(F);
+  rotVel.x += tau.x * 0.008; rotVel.y += tau.y * 0.035; rotVel.z += tau.z * 0.011;
+  offVel.addScaledVector(F, 0.07);
+  sqVel += 0.02 * power;
+  hairVel.addScaledVector(F, 0.03);
+
+  // He flinches: eyes squeeze shut and the mouth gasps open.
+  blinkUntil = now + 220;
+  mouthVel += 0.1 + power * 0.05;
+
+  // Camera reacts in 3D: punch-in zoom, swing around the head, dutch tilt, shake.
+  const dir = F.dot(camRight) > 0 ? 1 : -1;
+  fovKick = Math.min(3 + power * 2.2, 10);
+  camYawVel -= dir * (0.008 + power * 0.007);
+  camPitchVel += (Math.random() - 0.4) * 0.01 * power;
+  roll = -dir * 0.04 * power;
+  shake = Math.min(10 + power * 8 + combo, 40);
+  if (power > 2.4) { slowUntil = now + 450; camYawVel -= dir * 0.03; }
+
+  ripple(lp, 0.12 + power * 0.1);
+  if (face) heat = Math.min(heat + 0.12 * power, 1);
+  handprint(hitInfo.uv, dir);
+  shockwave(p, n, power);
+  droplets(p, n, F, Math.round(4 + power * 3));
+
+  slapSound(power);
+  flashScreen(Math.min(0.15 + power * 0.08, 0.45));
+  burst(cx, cy, power);
+  particles(cx, cy, dir, Math.round(3 + power * 2));
+
+  const words = power > 2.4 ? ['K.O.!!', 'MEGA SLAP!', 'OBLITERATED!']
+             : hitInfo.hair ? ['FLOOF!', 'BOING!', 'BONK!']
+             : face ? ['SLAP!', 'WHAP!', 'SMACK!', 'THWACK!', 'POW!']
+             : ['BONK!', 'WHACK!', 'BOP!'];
+  popWord(cx, cy - 20, pick(words));
+
+  addSad((face ? 1.5 : 0.7) * (power > 2.4 ? 1.5 : 1));
+
+  const story = storyBeat(F, lp, cx, cy);
+  if (!story && Math.random() < 0.45) {
+    const lines = cryStage >= 2
+      ? ['*sob*', 'W-why?!', 'I want my mom 😭', 'S-stop it... *sniff*', 'WAAAH!', 'I didn\'t do anything!']
+      : teethOut ? ['Thtop it!', 'My teef!!', 'I\'m thuing you!', 'Not the fathe!']
+      : !glassesOn ? ['I can\'t see!!', 'Where are my glasses?!', 'Who\'s there?!', 'Is that you, mom?']
+      : hitInfo.hair ? ['Not the hair!!', 'Do you know how long this takes?!', 'My curls!']
+      : ['OW!', 'Hey!!', 'Stop it!', 'Not the face!', 'Why?!', 'My face!!', 'Ouch!', 'I\'m telling mom!', 'I\'m calling my lawyer!'];
+    sayAtFace(pick(lines), -dir);
+  }
+
+  // He learns: after a face slap he may flinch away to dodge the next one.
+  if (face && cryStage < 3 && Math.random() < Math.min(0.15 + count * 0.006, 0.5)) {
+    setTimeout(() => raiseGuard(600 + Math.random() * 500), 160);
+  }
+
+  setDizzy(combo >= 5);
+  milestone(count);
+}
+
+// Glasses crack from slap 30, fly off at 40, and teeth get knocked out at 50.
+function storyBeat(F, lp, cx, cy) {
+  if (glassesOn && count >= GLASSES_FALL_AT) { knockOffGlasses(F, cx, cy); return true; }
+  if (glassesOn && count >= GLASSES_CRACK_AT) {
+    // Crack the lens on the side that was slapped; after a few, the other one goes too.
+    const near = lenses.find(l => l.side === (lp.x < -0.1 ? -1 : 1));
+    const lens = near.cracks <= crackLevel / 2 || Math.random() < 0.5 ? near : lenses.find(l => l !== near);
+    crackLevel++;
+    drawCrack(lens);
+    glassSound(false);
+    popWord(cx, cy - 70, 'CRACK!', '#cff');
+    if (crackLevel === 1) { sayAtFace('MY GLASSES!! 😱'); return true; }
+    return false;
+  }
+  if (!teethOut && count >= TEETH_BREAK_AT) { knockOutTeeth(F, cx, cy); return true; }
+  return false;
+}
+
+function detachCopy(obj) {
+  const c = obj.clone();
+  obj.matrixWorld.decompose(c.position, c.quaternion, c.scale);
+  obj.visible = false;
+  c.visible = true;
+  return c;
+}
+// A loose object tumbling away under gravity.
+function fly(obj, vel, spin, gravity, life = 240) {
+  scene.add(obj);
+  let t = 0;
+  effects.push(() => {
+    vel.y -= gravity;
+    obj.position.add(vel);
+    obj.rotation.x += spin.x; obj.rotation.y += spin.y; obj.rotation.z += spin.z;
+    if (++t < life && obj.position.y > -14) return true;
+    scene.remove(obj);
+    return false;
+  });
+}
+const rand3 = k => new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(k);
+
+function knockOffGlasses(F, cx, cy) {
+  glassesOn = false;
+  const fwd = headDir(0, 0, 1);
+  const flying = detachCopy(glasses);
+  fly(flying, F.clone().multiplyScalar(0.05).addScaledVector(fwd, 0.08).add(new THREE.Vector3(0, 0.14, 0)), rand3(0.25), 0.007);
+  const shardMat = new THREE.MeshPhongMaterial({ color: 0xe6f4ff, specular: 0xffffff, shininess: 200, transparent: true, opacity: 0.65, side: THREE.DoubleSide });
+  const shard = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0.14, 0.03, 0, 0.04, 0.16, 0], 3));
+  shard.computeVertexNormals();
+  lenses.forEach(l => {
+    const at = l.crack.getWorldPosition(new THREE.Vector3());
+    for (let i = 0; i < 12; i++) {
+      const m = new THREE.Mesh(shard, shardMat);
+      m.position.copy(at).add(rand3(0.6));
+      m.scale.setScalar(0.6 + Math.random());
+      fly(m, fwd.clone().multiplyScalar(0.06).addScaledVector(F, 0.03).add(rand3(0.2)).add(new THREE.Vector3(0, 0.08, 0)), rand3(0.5), 0.008, 150);
+    }
+  });
+  glassSound(true);
+  slowUntil = performance.now() + 700;
+  popWord(cx, cy - 70, 'SHATTERED!', '#cff');
+  setTimeout(() => sayAtFace(pick(['NOOO! My glasses! 😭', 'I can\'t see anything!!', 'Those were $400!!'])), 250);
+}
+
+function knockOutTeeth(F, cx, cy) {
+  teethOut = true;
+  mouthVel += 0.45;
+  const fwd = headDir(0, 0, 1);
+  missingTeeth.forEach(t => {
+    const c = detachCopy(t);
+    c.scale.multiplyScalar(1.3);
+    fly(c, fwd.clone().multiplyScalar(0.11).addScaledVector(F, 0.035).add(new THREE.Vector3((Math.random() - 0.5) * 0.06, 0.13, 0)), rand3(0.5), 0.0065);
+  });
+  const mouthAt = head.localToWorld(deform(new THREE.Vector3(-0.09, 0.4, 2.2)));
+  for (let i = 0; i < 16; i++) {
+    drop(bloodMat, mouthAt, fwd.clone().multiplyScalar(0.07).addScaledVector(F, 0.02).add(rand3(0.12)).add(new THREE.Vector3(0, 0.05, 0)), 0.03 + Math.random() * 0.04, 0.006, 100);
+  }
+  crunchSound();
+  slowUntil = performance.now() + 800;
+  popWord(cx, cy - 70, 'TOOTH LOST!', '#fff');
+  setTimeout(() => sayAtFace(pick(['MY TEEF!! 😭', 'You knocked out my teef!', 'Thith ith not okay!'])), 300);
+}
+
+let rippleIdx = 0;
+function ripple(localPoint, amp) {
+  rippleIdx = (rippleIdx + 1) % MAX_RIPPLES;
+  uniforms.uHits.value[rippleIdx].set(localPoint.x, localPoint.y, localPoint.z, simTime);
+  uniforms.uAmp.value[rippleIdx] = amp;
+}
+
+// --- Guarding: he flinches, leaning back and turning away ---
+let guardUp = false, guardTimer, guardReadyAt = 0;
+function raiseGuard(ms) {
+  if (guardUp || performance.now() < guardReadyAt) return;
+  guardUp = true;
+  const side = Math.random() < 0.5 ? -1 : 1;
+  rest.set(-0.2, side * 0.5, side * 0.1);
+  offVel.z -= 0.06;
+  if (Math.random() < 0.3) sayAtFace(pick(['Nope!', 'Not this time!', 'Ha!', 'Try me!']));
+  clearTimeout(guardTimer);
+  guardTimer = setTimeout(lowerGuard, ms);
+}
+function lowerGuard() {
+  guardUp = false;
+  rest.set(0, 0, 0);
+  guardReadyAt = performance.now() + 450;
+}
+setInterval(() => {
+  const p = cryStage === 3 ? 0.02 : Math.min(0.03 + count * 0.003, 0.2);
+  if (Math.random() < p) raiseGuard(500 + Math.random() * 800);
+}, 350);
+
+function blocked(cx, cy) {
+  combo = 0; $('combo').textContent = 'x0';
+  if (!muted) { tone('square', 220, 90, 0.12, 0.12); noiseBurst(0.06, 800, 1, 0.4); }
+  popWord(cx, cy - 20, 'DODGED!', '#7cf');
+  shake = 6;
+  rotVel.y += rest.y * 0.04;
+  if (Math.random() < 0.5) sayAtFace(pick(['Ha! Missed me!', 'Too slow!', 'Dodged! 😏', 'Nice try!']));
+  clearTimeout(guardTimer);
+  guardTimer = setTimeout(lowerGuard, 350 + Math.random() * 400);
+}
+function guardBreak(cx, cy) {
+  clearTimeout(guardTimer);
+  lowerGuard();
+  popWord(cx, cy - 70, 'GUARD BREAK!', '#ff8');
+}
+function sayAtFace(text, side = 1) {
+  const s = toScreen(new THREE.Vector3(side * 2.8, 2.6, 1));
+  say(s.x, s.y, text);
+}
+
+// --- Crying ---
+const MOODS = ['😠', '🥺', '😢', '😭'];
+const CRY_LINES = [null, '*sniff*...', 'W-why are you doing this?! 😢', 'WAAAAAAAAH!!! 😭'];
+let sad = 0, cryStage = 0, lastSob = 0;
+function addSad(n) { sad = Math.min(sad + n, 40); updateCry(); }
+function updateCry() {
+  const next = sad >= 26 ? 3 : sad >= 14 ? 2 : sad >= 6 ? 1 : 0;
+  if (next === cryStage) return;
+  if (next > cryStage && CRY_LINES[next]) setTimeout(() => sayAtFace(CRY_LINES[next]), 300);
+  if (next === 3) { clearTimeout(guardTimer); lowerGuard(); }
+  cryStage = next;
+  $('mood').textContent = MOODS[next];
+}
+
+// --- 3D effects ---
+const dropGeo = new THREE.SphereGeometry(1, 12, 10);
+const tearMat = new THREE.MeshPhongMaterial({ color: 0xbfe6ff, specular: 0xffffff, shininess: 120, transparent: true, opacity: 0.85 });
+const spitMat = new THREE.MeshPhongMaterial({ color: 0xdfeefa, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.55 });
+const bloodMat = new THREE.MeshPhongMaterial({ color: 0x8a0a10, specular: 0x552222, shininess: 80 });
+
+// A droplet flying under gravity, stretched along its velocity.
+function drop(mat, at, vel, size, gravity, life) {
+  const m = new THREE.Mesh(dropGeo, mat);
+  m.position.copy(at);
+  m.scale.setScalar(size);
+  scene.add(m);
+  let t = 0;
+  effects.push(() => {
+    vel.y -= gravity;
+    m.position.add(vel);
+    m.scale.set(size, size * (1 + vel.length() * 4), size);
+    m.lookAt(tmpV.copy(m.position).add(vel));
+    m.rotateX(Math.PI / 2);
+    if (++t < life && m.position.y > -9) return true;
+    scene.remove(m);
+    return false;
+  });
+}
+function tearDrop(eye, fountain) {
+  if (!head) return;
+  const at = head.localToWorld(deform(eye.pos));
+  const out = headDir(eye.side, 0, 0);
+  const vel = fountain
+    ? out.multiplyScalar(0.07 + Math.random() * 0.07).add(new THREE.Vector3(0, 0.05 + Math.random() * 0.05, 0.04))
+    : out.multiplyScalar(0.004).add(new THREE.Vector3(0, -0.01, 0.012));
+  drop(tearMat, at, vel, fountain ? 0.11 : 0.09, fountain ? 0.006 : 0.0025, 120);
+}
+function droplets(p, n, F, count) {
+  for (let i = 0; i < count; i++) {
+    const vel = n.clone().multiplyScalar(0.08).addScaledVector(F, 0.05)
+      .add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.2, Math.random() - 0.5).multiplyScalar(0.12));
+    drop(spitMat, p, vel, 0.018 + Math.random() * 0.03, 0.006, 90);
+  }
+}
+const ringGeo = new THREE.RingGeometry(0.85, 1, 48);
+function shockwave(p, n, power) {
+  [0, 6].forEach((delay, i) => {
+    const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({
+      color: i ? 0xffffff : 0xffd84a, transparent: true, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    m.position.copy(p).addScaledVector(n, 0.08);
+    m.lookAt(tmpV.copy(p).add(n));
+    m.visible = false;
+    scene.add(m);
+    let t = -delay;
+    const end = 22, maxR = 0.7 + power * 0.35;
+    effects.push(() => {
+      t++;
+      if (t <= 0) return true;
+      const k = t / end;
+      m.visible = true;
+      m.scale.setScalar(0.2 + (1 - (1 - k) ** 3) * maxR);
+      m.material.opacity = (1 - k) * 0.6;
+      if (t < end) return true;
+      scene.remove(m); m.material.dispose();
+      return false;
+    });
+  });
+}
+
+function sniffle() {
+  if (muted) return;
+  noiseBurst(0.07, 3200, 2, 0.18);
+  setTimeout(() => noiseBurst(0.09, 2800, 2, 0.15), 120);
+}
+function wail() {
+  if (muted) return;
+  const a = audio(), t = a.currentTime;
+  const o = a.createOscillator(), lfo = a.createOscillator(), lfoGain = a.createGain();
+  const f = a.createBiquadFilter(), g = a.createGain();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(560, t); o.frequency.linearRampToValueAtTime(620, t + 0.25); o.frequency.exponentialRampToValueAtTime(360, t + 1.1);
+  lfo.frequency.value = 7; lfoGain.gain.value = 18;
+  lfo.connect(lfoGain).connect(o.frequency);
+  f.type = 'lowpass'; f.frequency.value = 1400;
+  g.gain.setValueAtTime(0.001, t); g.gain.linearRampToValueAtTime(0.07, t + 0.1); g.gain.exponentialRampToValueAtTime(0.001, t + 1.15);
+  o.connect(f).connect(g).connect(a.destination);
+  o.start(t); lfo.start(t); o.stop(t + 1.2); lfo.stop(t + 1.2);
+}
+setInterval(() => {
+  const now = performance.now();
+  if (now - lastHit > 2000) { sad = Math.max(0, sad - 0.04); updateCry(); }
+  if (cryStage === 1 && Math.random() < 0.03) tearDrop(pick(EYES), false);
+  if (cryStage === 2 && Math.random() < 0.35) tearDrop(pick(EYES), false);
+  if (cryStage === 3) {
+    EYES.forEach(e => tearDrop(e, true));
+    if (now - lastSob > 650) { lastSob = now; sqVel += 0.012; rotVel.x += 0.02; rotVel.z += (Math.random() - 0.5) * 0.02; }
+  }
+  if (cryStage >= 2 && Math.random() < 0.012) sniffle();
+  if (cryStage === 3 && now - lastHit > 600 && Math.random() < 0.03) wail();
+}, 90);
+
+// --- 2D effects ---
+function fx(cls, x, y, html) {
+  const el = document.createElement('div');
+  el.className = 'fx ' + cls;
+  el.style.left = x + 'px'; el.style.top = y + 'px';
+  if (html) el.innerHTML = html;
+  document.body.appendChild(el);
+  return el;
+}
+function popWord(x, y, text, color) {
+  const el = fx('word', x, y);
+  el.textContent = text;
+  el.style.setProperty('--r', (Math.random() * 30 - 15) + 'deg');
+  if (color) el.style.color = color;
+  setTimeout(() => el.remove(), 850);
+}
+function burst(x, y, power) {
+  const pts = [];
+  for (let i = 0; i < 24; i++) {
+    const r = i % 2 ? 30 : 80, a = (i / 24) * Math.PI * 2;
+    pts.push(`${80 + Math.cos(a) * r},${80 + Math.sin(a) * r}`);
+  }
+  const el = fx('burst', x, y,
+    `<svg viewBox="0 0 160 160" width="100%" height="100%"><polygon points="${pts.join(' ')}" fill="#fff36b" stroke="#ff5a00" stroke-width="5"/></svg>`);
+  el.style.width = el.style.height = 120 + power * 50 + 'px';
+  el.style.margin = `-${60 + power * 25}px 0 0 -${60 + power * 25}px`;
+  setTimeout(() => el.remove(), 400);
+}
+function particles(x, y, dir, n) {
+  const icons = ['⭐', '✨', '💥', '💫', '🌟'];
+  for (let i = 0; i < n; i++) {
+    const el = fx('particle', x, y);
+    el.textContent = pick(icons);
+    const a = (dir > 0 ? 0 : Math.PI) + (Math.random() - 0.5) * 2.2;
+    const d = 80 + Math.random() * 160;
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.5)', opacity: 1 },
+      { transform: `translate(calc(-50% + ${Math.cos(a) * d}px), calc(-50% + ${Math.sin(a) * d - 40}px)) scale(1.2) rotate(${Math.random() * 360}deg)`, opacity: 0 }
+    ], { duration: 600 + Math.random() * 400, easing: 'cubic-bezier(.1,.8,.3,1)' }).onfinish = () => el.remove();
+  }
+}
+// Red handprint painted onto the skin texture at the hit UV.
+function handprint(uv, dir) {
+  if (!uv) return;
+  bctx.save();
+  bctx.translate(uv.x * 1024, (1 - uv.y) * 1024);
+  bctx.rotate(dir * (15 + Math.random() * 30) * Math.PI / 180);
+  bctx.scale(dir * 1.7, 1.7);
+  bctx.translate(-50, -55);
+  bctx.filter = 'blur(3px)';
+  bctx.fillStyle = 'rgba(255,0,0,.55)';
+  bctx.beginPath();
+  [[50, 64, 24, 26, 0], [30.5, 34, 5.5, 20, -12], [43.5, 28, 5.5, 22, -4], [56.5, 29, 5.5, 21, 4], [68, 34, 5, 18, 12], [72, 66.6, 5.5, 15, 50]]
+    .forEach(([x, y, rx, ry, r]) => { bctx.moveTo(x + rx, y); bctx.ellipse(x, y, rx, ry, r * Math.PI / 180, 0, Math.PI * 2); });
+  bctx.fill();
+  bctx.restore();
+  bruiseTex.needsUpdate = true;
+}
+function flashScreen(o) {
+  flash.animate([{ opacity: o }, { opacity: 0 }], { duration: 160, easing: 'ease-out' });
+}
+function say(x, y, text) {
+  const el = fx('bubble', x, y);
+  el.textContent = text;
+  setTimeout(() => el.remove(), 1650);
+}
+let dizzyOn = false, dizzyT = 0;
+function setDizzy(on) {
+  if (on && !dizzyOn) {
+    dizzyOn = true;
+    dizzy.innerHTML = '<span>💫</span><span>⭐</span><span>💫</span><span>⭐</span>';
+  }
+}
+function updateDizzy() {
+  if (!dizzyOn) return;
+  if (performance.now() - lastHit > 2500) { dizzyOn = false; dizzy.innerHTML = ''; return; }
+  const top = toScreen(new THREE.Vector3(0, 5.2, 0));
+  dizzy.style.left = top.x + 'px'; dizzy.style.top = top.y + 'px';
+  dizzyT += 0.06;
+  const r = Math.min(innerWidth, innerHeight) * 0.14;
+  [...dizzy.children].forEach((sp, i) => {
+    const a = dizzyT + (i / dizzy.children.length) * Math.PI * 2;
+    sp.style.transform = `translate(calc(-50% + ${Math.cos(a) * r}px), calc(-50% + ${Math.sin(a) * r * 0.3}px)) scale(${1 + Math.sin(a) * 0.3})`;
+  });
+}
+const MILESTONES = {
+  10: 'Warming up! 🔥', 25: 'Foggy is FURIOUS 😤', [GLASSES_CRACK_AT]: 'GLASSES CRACKED! 👓',
+  [GLASSES_FALL_AT]: 'GLASSES GONE! 👓💥', [TEETH_BREAK_AT]: 'TOOTH KNOCKED OUT! 🦷',
+  100: 'LEGENDARY SLAPPER 👑', 250: 'Please... he has a family 😭'
+};
+let bannerTimer;
+function milestone(n) {
+  if (!MILESTONES[n]) return;
+  banner.textContent = MILESTONES[n];
+  banner.classList.add('show');
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => banner.classList.remove('show'), 1800);
+}
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+$('mute').addEventListener('click', e => { muted = !muted; e.currentTarget.textContent = muted ? '🔇' : '🔊'; });
+$('reset').addEventListener('click', () => {
+  count = combo = 0; heat = 0;
+  bctx.clearRect(0, 0, 1024, 1024); bruiseTex.needsUpdate = true;
+  sad = 0; updateCry(); lowerGuard();
+  glassesOn = true; glasses.visible = true; crackLevel = 0;
+  lenses.forEach(l => { l.ctx.clearRect(0, 0, 256, 180); l.tex.needsUpdate = true; l.crack.visible = false; l.cracks = 0; });
+  teethOut = false; missingTeeth.forEach(t => { t.visible = true; });
+  $('count').textContent = '0'; $('combo').textContent = 'x0';
+});
+window.addEventListener('keydown', e => {
+  if (e.code !== 'Space' || !head) return;
+  e.preventDefault();
+  audio();
+  // Aim at a cheek just below and outside one eye.
+  const eye = pick(EYES);
+  const s = toScreen(eye.pos.clone().add(new THREE.Vector3(eye.side * 0.5, -1.2, 0)));
+  const hitInfo = pick3D(s.x, s.y);
+  if (hitInfo) slapAt(s.x, s.y, hitInfo, 1.4, true);
+});
 </script>
 </body>
 </html>
