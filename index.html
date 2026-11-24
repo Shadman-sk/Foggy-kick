@@ -12,6 +12,10 @@
     --accent: #ffcc33;
     --hit: #ff3b3b;
   }
+
+
+
+  //This is part 
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
@@ -202,7 +206,7 @@ const bruiseCanvas = document.createElement('canvas');
 bruiseCanvas.width = bruiseCanvas.height = 1024;
 const bctx = bruiseCanvas.getContext('2d');
 const bruiseTex = new THREE.CanvasTexture(bruiseCanvas);
-
+// in practice 
 // Eye and mouth centres in the skin texture's UV space.
 const EYE_UV = [new THREE.Vector2(0.431, 0.698), new THREE.Vector2(0.571, 0.700)];
 const MOUTH_UV = new THREE.Vector2(0.5, 0.536);
@@ -252,6 +256,7 @@ function deform(local) {
   return local.clone().lerp(local.clone().applyMatrix4(headM), w);
 }
 
+  // i make 
 const tl = new THREE.TextureLoader();
 const skinMap = tl.load(ASSETS + 'Map-COL.jpg');
 skinMap.colorSpace = THREE.SRGBColorSpace;
@@ -335,7 +340,7 @@ function surfaceAtUV(geo, uvPt) {
   }
   return out.divideScalar(w);
 }
-
+//I change 
 new GLTFLoader().load(ASSETS + 'LeePerrySmith.glb', gltf => {
   head = gltf.scene.children.find(o => o.isMesh) || gltf.scene.getObjectByProperty('isMesh', true);
   head.material = skin;
